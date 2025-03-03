@@ -1,0 +1,19 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ControleLancamentos.Domain\ControleLancamentos.Domain.csproj" />
+    <ProjectReference Include="..\ControleLancamentos.Messaging\ControleLancamentos.Messaging.csproj" />
+    <ProjectReference Include="..\ControleLancamentos.ORM\ControleLancamentos.ORM.csproj" />
+  </ItemGroup>
+
+</Project>
