@@ -1,13 +1,12 @@
-﻿using ControleLancamentos.Domain.Entities.ContasBancarias;
+﻿using ConsolidadoDiario.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using System.Reflection;
 
-namespace ControleLancamentos.ORM
+namespace ConsolidadoDiario.ORM
 {
     public class DefaultContext : DbContext
     {
-        public DbSet<ContaBancaria> ContasBancarias { get; set; }
-        public DbSet<Lancamento> Lancamentos { get; set; }
+        public DbSet<ConsolidadoDiarioConta> ConsolidadoDiarioContas { get; set; }
 
         public DefaultContext(DbContextOptions<DefaultContext> options) : base(options)
         {

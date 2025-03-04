@@ -26,6 +26,7 @@ namespace ControleLancamentos.Messaging.EventHandler
                 new NameValueEntry("agenciaContaBancaria", notification.AgenciaContaBancaria),
                 new NameValueEntry("valor", notification.Valor.ToString()),
                 new NameValueEntry("data", notification.Data.ToString("o")), 
+                new NameValueEntry("tipo", notification.Tipo.ToString()),
                 new NameValueEntry("eventoJson", eventoJson)
             });
         }
