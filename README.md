@@ -18,12 +18,10 @@ O conjunto de Microsserviços visa atender a demanda de um comerciante que preci
 
 
 ## Decisões arquiteturais
-Essa seção trata das decisões relacionadas a padrões arquiteturais e do design do sistema 
-Veja [Arquiteira do sistema](/.doc/arquitetura.md)
+[Arquiteira do sistema](/.doc/arquitetura.md): Essa seção trata das decisões relacionadas a padrões arquiteturais e do design do sistema 
 
 ## Frameworks e serviços
-Essa seção lista os Framework e serviços utilizados no projeto
-Veja [Frameworks](/.doc/frameworks.md)
+[Frameworks](/.doc/frameworks.md): Essa seção lista os Framework e serviços utilizados no projeto
 
 ## Observações
 - Para fins didáticos ambos os serviços estarão no mesmo repositório, mas em um cenário real cada serviço teria seu próprio repositório, com branchs develop, staging, release etc, seguinte as boas práticas do Git Flow.
