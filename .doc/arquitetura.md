@@ -51,3 +51,16 @@ Em um cenário de aplicações distribuídas (Kubernetes, por exmeplo), são com
 - Serilog: Logs centralizados e rastreamento, permitindo a estruturação e o envio de logs para diversos destinos, como bancos de dados, serviços de logging etc.
 - ELK Stack (Elasticsearch, Logstash, Kibana e APM Server): Elasticsearch para armazenar e indexar os logs, Logstash para coleta e processamento dos logs, APM Server como ponto de entrada de dados de desempenho da aplicação, e Kibana para visualização. 
 Outras opções como DataDog, Prometheus e Grafana também são interessantes.
+
+## Autenticação e Autorização com Token JWT (não implementado)
+- Serviço de autenticação que gere um Token após validação de credenciais. 
+- Implementação de autorização nos endpoints a fim de restringir o acesso apenas a usuários autorizados (com token válido).
+
+## Pipeline de Testes integrados automatizados (não implementado)
+- Ambiente totalmente isolado para testes
+- Docker Compose para infraestrutura
+- Migrations automatizadas
+- Seeds de teste
+- Limpeza e reinicialização do banco entre testes
+- Testes de integração entre os serviços
+- Jenkins ou GitHub Actions para a orquestração do Pipeline
