@@ -107,7 +107,7 @@ namespace ConsolidadoDiario.Messaging
                 var numeroContaBancaria = message["numeroContaBancaria"].ToString();
                 var agenciaContaBancaria = message["agenciaContaBancaria"].ToString();
                 var valor = decimal.Parse(message["valor"], CultureInfo.InvariantCulture);
-                var data = DateTime.Parse(message["data"], CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
+                var data = DateTime.Parse(message["data"], CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);                
                 var tipo = Enum.Parse<TipoTransacao>(message["tipo"]);
 
                 return new UpdateConsolidadoDiarioCommand

@@ -1,15 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using ConsolidadoDiario.Domain.Entities;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-/*
- 	tabela ConsolidadoDiario
-			data
-			totalCreditos
-			totalDebitos
-			saldoConsolidado - Diferença entre créditos e débitos (Total de Créditos - Total de Débitos)
-			data Última Atualização
- 
- */
+
 namespace ConsolidadoDiario.ORM.Mapping
 {
     public class ConsolidadoDiarioMapping : IEntityTypeConfiguration<ConsolidadoDiarioConta>
