@@ -1,6 +1,7 @@
 ﻿using ControleLancamentos.Domain.Events.ControleLancamentos;
 using MediatR;
 using StackExchange.Redis;
+using System.Globalization;
 using System.Text.Json;
 
 namespace ControleLancamentos.Messaging.EventHandler
@@ -24,7 +25,7 @@ namespace ControleLancamentos.Messaging.EventHandler
                 new NameValueEntry("eventId", notification.EventId.ToString()),
                 new NameValueEntry("numeroContaBancaria", notification.NumeroContaBancaria),
                 new NameValueEntry("agenciaContaBancaria", notification.AgenciaContaBancaria),
-                new NameValueEntry("valor", notification.Valor.ToString()),
+                new NameValueEntry("valor", notification.Valor.ToString(CultureInfo.InvariantCulture)),
                 new NameValueEntry("data", notification.Data.ToString("o")), 
                 new NameValueEntry("tipo", notification.Tipo.ToString()),
                 new NameValueEntry("eventoJson", eventoJson)

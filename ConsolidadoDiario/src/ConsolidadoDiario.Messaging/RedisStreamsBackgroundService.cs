@@ -1,6 +1,7 @@
-﻿using ConsolidadoDiario.Application.Features;
+﻿using ConsolidadoDiario.Application.Features.ConsolidadoDiario.UpdateConsolidadoDiario;
 using ConsolidadoDiario.Domain.Enums;
 using MediatR;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -11,31 +12,32 @@ namespace ConsolidadoDiario.Messaging
 {
     public class RedisStreamsBackgroundService : BackgroundService
     {
-        private readonly IConnectionMultiplexer _redis;
-        //private readonly IMediator _mediator;
+        private readonly IConnectionMultiplexer _redis;       
         private readonly ILogger<RedisStreamsBackgroundService> _logger;
-        private readonly string _streamName = "lancamentos-consolidado-diario";
-        private readonly string _consumerGroup = "consolidado-diario-group";
-        private readonly string _consumerName = "consumer-1";
+        private readonly string _streamName;
+        private readonly string _consumerGroup;
+        private readonly string _consumerName;
         private readonly IServiceProvider _serviceProvider;
 
 
-        public RedisStreamsBackgroundService(IConnectionMultiplexer redis, 
-                                             //IMediator mediator, 
+        public RedisStreamsBackgroundService(IConnectionMultiplexer redis,
                                              ILogger<RedisStreamsBackgroundService> logger,
-                                             IServiceProvider serviceProvider)
+                                             IServiceProvider serviceProvider,
+                                             IConfiguration configuration)
         {
-            _redis = redis;
-            //_mediator = mediator;
-            _logger = logger;
-            _serviceProvider = serviceProvider;
+            _redis = redis ?? throw new ArgumentNullException(nameof(redis));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
+            _streamName = configuration["Redis:StreamName"] ?? throw new ArgumentNullException("Redis:StreamName");
+            _consumerGroup = configuration["Redis:ConsumerGroup"] ?? throw new ArgumentNullException("Redis:ConsumerGroup");
+            _consumerName = configuration["Redis:ConsumerName"] ?? throw new ArgumentNullException("Redis:ConsumerName");
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             var db = _redis.GetDatabase();
 
-            // Garante que o grupo existe (opcional, pode ser feito manualmente)
+            // Garante que o grupo existe
             await CreateConsumerGroupIfNotExistsAsync(db);
 
             while (!stoppingToken.IsCancellationRequested)
@@ -48,7 +50,7 @@ namespace ConsolidadoDiario.Messaging
                         _consumerGroup,
                         _consumerName,
                         ">", // Lê novas mensagens não entregues
-                        count: 5 // Ajustar conforme necessidade
+                        count: 5 
                     );
 
                     if (messages.Any())
@@ -58,14 +60,15 @@ namespace ConsolidadoDiario.Messaging
                             try
                             {                                
                                 var integrationEvent = DeserializeMessage(message);
-
-                                //await _mediator.Send(integrationEvent);                                
-                                using (var scope = _serviceProvider.CreateScope())
+                                if(integrationEvent != null)
                                 {
-                                    var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
-                                    await mediator.Send(integrationEvent, stoppingToken);
-                                }
+                                    using (var scope = _serviceProvider.CreateScope())
+                                    {
+                                        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+                                        await mediator.Send(integrationEvent, stoppingToken);
+                                    }
 
+                                }
                                 // Confirma o processamento (ACK)
                                 await db.StreamAcknowledgeAsync(_streamName, _consumerGroup, message.Id);
                                 _logger.LogInformation("Evento {EventId} processado com sucesso", message.Id);
@@ -94,22 +97,33 @@ namespace ConsolidadoDiario.Messaging
             {
                 await db.StreamCreateConsumerGroupAsync(_streamName, _consumerGroup, "0-0", true);
             }
-            catch (RedisException ex) when (ex.Message.Contains("BUSYGROUP"))
-            {
-                // Grupo já existe, não precisa fazer nada
-            }
+            catch (RedisException ex) when (ex.Message.Contains("BUSYGROUP")){}
         }
 
-        private UpdateConsolidadoDiarioCommand DeserializeMessage(StreamEntry message)
+        private UpdateConsolidadoDiarioCommand? DeserializeMessage(StreamEntry message)
         {
-            // Desserializa usando os campos individuais            
-            string numeroContaBancaria = message["numeroContaBancaria"].ToString();
-            string agenciaContaBancaria = message["agenciaContaBancaria"].ToString();
-            decimal valor = decimal.Parse(message["valor"], CultureInfo.InvariantCulture);
-            DateTime data = DateTime.Parse(message["data"], CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
-            TipoTransacao tipo = Enum.Parse<TipoTransacao>(message["tipo"]);
+            try
+            {
+                var numeroContaBancaria = message["numeroContaBancaria"].ToString();
+                var agenciaContaBancaria = message["agenciaContaBancaria"].ToString();
+                var valor = decimal.Parse(message["valor"], CultureInfo.InvariantCulture);
+                var data = DateTime.Parse(message["data"], CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
+                var tipo = Enum.Parse<TipoTransacao>(message["tipo"]);
 
-            return new UpdateConsolidadoDiarioCommand { NumeroContaBancaria = numeroContaBancaria, AgenciaContaBancaria = agenciaContaBancaria, Valor = valor, Data = data, Tipo = tipo };         
+                return new UpdateConsolidadoDiarioCommand
+                {
+                    NumeroContaBancaria = numeroContaBancaria,
+                    AgenciaContaBancaria = agenciaContaBancaria,
+                    Valor = valor,
+                    Data = data,
+                    Tipo = tipo
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao desserializar a mensagem {MessageId}", message.Id);
+                return null;
+            }
         }        
     }
 }

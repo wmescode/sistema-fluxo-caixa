@@ -2,9 +2,9 @@
 using ControleLancamentos.Application.Features.ControleLancamentos.CreateLancamento;
 using MediatR;
 
-namespace ControleLancamento.Api.ControleLancamentos
+namespace ControleLancamento.Api.Endpoints
 {
-    public static class ModuloControleLancamentos
+    public static class EndpointsControleLancamentos
     {
         public static void AddControleLancamentosEndpoints (this IEndpointRouteBuilder app)
         {

@@ -1,6 +1,7 @@
 ﻿using ConsolidadoDiario.Application;
 using ConsolidadoDiario.Messaging;
 using Microsoft.Extensions.DependencyInjection;
+using FluentValidation;
 
 namespace ConsolidadoDiario.IoC
 {
@@ -15,7 +16,11 @@ namespace ConsolidadoDiario.IoC
                     typeof(MessagingLayer).Assembly
                 );
             });
-            services.AddHostedService<RedisStreamsBackgroundService>();
+
+            services.AddValidatorsFromAssembly(typeof(ApplicationLayer).Assembly);
+            services.AddValidatorsFromAssembly(typeof(MessagingLayer).Assembly);                       
+            services.AddHostedService<RedisStreamsBackgroundService>();            
+            services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());            
 
             return services;
         }

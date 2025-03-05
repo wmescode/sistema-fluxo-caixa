@@ -1,19 +1,25 @@
 ﻿using ConsolidadoDiario.Domain.Entities;
 using ConsolidadoDiario.Domain.Repositories;
+using FluentValidation;
 using MediatR;
+using Microsoft.Extensions.Caching.Distributed;
 
-namespace ConsolidadoDiario.Application.Features
+namespace ConsolidadoDiario.Application.Features.ConsolidadoDiario.UpdateConsolidadoDiario
 {
     public class UpdateConsolidadoDiarioHandler : IRequestHandler<UpdateConsolidadoDiarioCommand>
     {
         private readonly IConsolidadoDiarioRepository _consolidadoDiarioRepository;
-        public UpdateConsolidadoDiarioHandler(IConsolidadoDiarioRepository consolidadoDiarioRepository)
+        private readonly IDistributedCache _cache;       
+
+        public UpdateConsolidadoDiarioHandler(IConsolidadoDiarioRepository consolidadoDiarioRepository,
+                                              IDistributedCache cache)
         {
             _consolidadoDiarioRepository = consolidadoDiarioRepository;
+            _cache = cache;            
         }
 
         public async Task Handle(UpdateConsolidadoDiarioCommand request, CancellationToken cancellationToken)
-        {
+        {            
             var consolidadoDiario = await _consolidadoDiarioRepository.GetConsolidadoDiarioContaAsync(request.NumeroContaBancaria, request.AgenciaContaBancaria, request.Data, cancellationToken);
 
             if(consolidadoDiario == null)
@@ -28,12 +34,9 @@ namespace ConsolidadoDiario.Application.Features
                 await _consolidadoDiarioRepository.UpdateConsolidadoDiarioContaAsync(consolidadoDiario, cancellationToken);
             }
 
-            
-
-            //verifica se já existe consolidado diario para a data e conta informada
-            //atualizar o consolidado diario no banco de dados postgresql
-            //atualizar consolidado diario no cache redis
-            //avaliar atomocidade entre persistencia no redis e no postgresql            
+            // Limpa o cache após atualização
+            var cacheKey = $"ConsolidadoDiario_{request.NumeroContaBancaria}_{request.AgenciaContaBancaria}_{request.Data:yyyy-MM-dd}";
+            await _cache.RemoveAsync(cacheKey, cancellationToken);
         }
     }
 }

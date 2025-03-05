@@ -1,5 +1,5 @@
 using ControleLancamentos.IoC;
-using ControleLancamento.Api.ControleLancamentos;
+using ControleLancamento.Api.Endpoints;
 
 var builder = WebApplication.CreateBuilder(args);
 

@@ -24,8 +24,13 @@ namespace ConsolidadoDiario.IoC
             var redisConnectionString = configuration.GetConnectionString("Redis");
             services.AddSingleton<IConnectionMultiplexer>(ConnectionMultiplexer.Connect(redisConnectionString));
 
-            services.AddScoped<IConsolidadoDiarioRepository, ConsolidadoDiarioRepository>();
+            services.AddStackExchangeRedisCache(options =>
+            {
+                options.Configuration = redisConnectionString;
+                options.InstanceName = "ConsolidadoDiarioCache";
+            });
 
+            services.AddScoped<IConsolidadoDiarioRepository, ConsolidadoDiarioRepository>();            
             return services;
         }
     }
