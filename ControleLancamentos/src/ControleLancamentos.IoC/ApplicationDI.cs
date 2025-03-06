@@ -1,5 +1,7 @@
 ﻿using ControleLancamentos.Application;
+using ControleLancamentos.Application.PipelineBehavior;
 using ControleLancamentos.Messaging;
+using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace ControleLancamentos.IoC
@@ -15,6 +17,8 @@ namespace ControleLancamentos.IoC
                     typeof(MessagingLayer).Assembly
                 );
             });
+            
+            services.AddTransient(typeof(IPipelineBehavior<,>), typeof(LoggingBehavior<,>));
 
             return services;
         }

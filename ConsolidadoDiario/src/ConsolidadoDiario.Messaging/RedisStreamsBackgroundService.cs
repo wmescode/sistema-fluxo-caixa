@@ -18,12 +18,14 @@ namespace ConsolidadoDiario.Messaging
         private readonly string _consumerGroup;
         private readonly string _consumerName;
         private readonly IServiceProvider _serviceProvider;
+        private readonly IMediator _mediator;
 
 
         public RedisStreamsBackgroundService(IConnectionMultiplexer redis,
                                              ILogger<RedisStreamsBackgroundService> logger,
                                              IServiceProvider serviceProvider,
-                                             IConfiguration configuration)
+                                             IConfiguration configuration,
+                                             IMediator mediator)
         {
             _redis = redis ?? throw new ArgumentNullException(nameof(redis));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -31,6 +33,7 @@ namespace ConsolidadoDiario.Messaging
             _streamName = configuration["Redis:StreamName"] ?? throw new ArgumentNullException("Redis:StreamName");
             _consumerGroup = configuration["Redis:ConsumerGroup"] ?? throw new ArgumentNullException("Redis:ConsumerGroup");
             _consumerName = configuration["Redis:ConsumerName"] ?? throw new ArgumentNullException("Redis:ConsumerName");
+            _mediator = mediator;
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -62,12 +65,7 @@ namespace ConsolidadoDiario.Messaging
                                 var integrationEvent = DeserializeMessage(message);
                                 if(integrationEvent != null)
                                 {
-                                    using (var scope = _serviceProvider.CreateScope())
-                                    {
-                                        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
-                                        await mediator.Send(integrationEvent, stoppingToken);
-                                    }
-
+                                    await _mediator.Send(integrationEvent, stoppingToken);
                                 }
                                 // Confirma o processamento (ACK)
                                 await db.StreamAcknowledgeAsync(_streamName, _consumerGroup, message.Id);

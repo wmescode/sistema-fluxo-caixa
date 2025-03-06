@@ -19,9 +19,9 @@ namespace ConsolidadoDiario.IoC
                 );
             });
 
-            services.AddTransient(typeof(IPipelineBehavior<,>), typeof(LoggingBehavior<,>));
-            services.AddTransient(typeof(IPipelineBehavior<,>), typeof(CachingBehavior<,>));
-            services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ClearCacheBehavior<,>));
+            services.AddScoped(typeof(IPipelineBehavior<,>), typeof(LoggingBehavior<,>));
+            services.AddScoped(typeof(IPipelineBehavior<,>), typeof(CachingBehavior<,>));
+            services.AddScoped(typeof(IPipelineBehavior<,>), typeof(ClearCacheBehavior<,>));
 
             services.AddValidatorsFromAssembly(typeof(ApplicationLayer).Assembly);
             services.AddValidatorsFromAssembly(typeof(MessagingLayer).Assembly);                       
