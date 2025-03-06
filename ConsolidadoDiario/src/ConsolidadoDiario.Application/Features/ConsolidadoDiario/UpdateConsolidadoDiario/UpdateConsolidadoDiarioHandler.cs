@@ -1,21 +1,16 @@
 ﻿using ConsolidadoDiario.Domain.Entities;
 using ConsolidadoDiario.Domain.Repositories;
-using FluentValidation;
 using MediatR;
-using Microsoft.Extensions.Caching.Distributed;
 
 namespace ConsolidadoDiario.Application.Features.ConsolidadoDiario.UpdateConsolidadoDiario
 {
     public class UpdateConsolidadoDiarioHandler : IRequestHandler<UpdateConsolidadoDiarioCommand>
     {
-        private readonly IConsolidadoDiarioRepository _consolidadoDiarioRepository;
-        private readonly IDistributedCache _cache;       
+        private readonly IConsolidadoDiarioRepository _consolidadoDiarioRepository;        
 
-        public UpdateConsolidadoDiarioHandler(IConsolidadoDiarioRepository consolidadoDiarioRepository,
-                                              IDistributedCache cache)
+        public UpdateConsolidadoDiarioHandler(IConsolidadoDiarioRepository consolidadoDiarioRepository)
         {
-            _consolidadoDiarioRepository = consolidadoDiarioRepository;
-            _cache = cache;            
+            _consolidadoDiarioRepository = consolidadoDiarioRepository;            
         }
 
         public async Task Handle(UpdateConsolidadoDiarioCommand request, CancellationToken cancellationToken)
@@ -33,10 +28,6 @@ namespace ConsolidadoDiario.Application.Features.ConsolidadoDiario.UpdateConsoli
                 consolidadoDiario.AtualizaSaldoConsolidado(request.Tipo, request.Valor);
                 await _consolidadoDiarioRepository.UpdateConsolidadoDiarioContaAsync(consolidadoDiario, cancellationToken);
             }
-
-            // Limpa o cache após atualização
-            var cacheKey = $"ConsolidadoDiario_{request.NumeroContaBancaria}_{request.AgenciaContaBancaria}_{request.Data:yyyy-MM-dd}";
-            await _cache.RemoveAsync(cacheKey, cancellationToken);
         }
     }
 }

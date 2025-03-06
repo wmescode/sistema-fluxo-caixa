@@ -16,6 +16,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ConsolidadoDiario.Domain\ConsolidadoDiario.Domain.csproj" />
+    <ProjectReference Include="..\ConsolidadoDiario.ORM\ConsolidadoDiario.ORM.csproj" />
   </ItemGroup>
 
 </Project>

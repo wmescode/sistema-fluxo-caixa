@@ -2,6 +2,8 @@
 using ConsolidadoDiario.Messaging;
 using Microsoft.Extensions.DependencyInjection;
 using FluentValidation;
+using MediatR;
+using ConsolidadoDiario.Application.PipelineBehavior;
 
 namespace ConsolidadoDiario.IoC
 {
@@ -16,6 +18,10 @@ namespace ConsolidadoDiario.IoC
                     typeof(MessagingLayer).Assembly
                 );
             });
+
+            services.AddTransient(typeof(IPipelineBehavior<,>), typeof(LoggingBehavior<,>));
+            services.AddTransient(typeof(IPipelineBehavior<,>), typeof(CachingBehavior<,>));
+            services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ClearCacheBehavior<,>));
 
             services.AddValidatorsFromAssembly(typeof(ApplicationLayer).Assembly);
             services.AddValidatorsFromAssembly(typeof(MessagingLayer).Assembly);                       
