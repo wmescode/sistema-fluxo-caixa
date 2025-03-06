@@ -20,12 +20,6 @@ Este projeto utiliza uma combinação de serviços e frameworks para garantir es
 
 ---
 
-## **AutoMapper**
-- **Função**: Biblioteca para mapeamento automático de objetos.
-- **Uso no Projeto**: Converte entidades de domínio em DTOs (Data Transfer Objects) e vice-versa.
-- **Benefícios**: Simplifica a transformação de dados entre camadas, reduzindo código repetitivo.
-
----
 
 ## **Entity Framework Core / Migrations**
 - **Função**: ORM (Object-Relational Mapper) para acesso a banco de dados e gerenciamento de esquemas.
@@ -68,5 +62,20 @@ Este projeto utiliza uma combinação de serviços e frameworks para garantir es
 - **Função**: Gera documentação automática da API no formato Swagger/OpenAPI.
 - **Uso no Projeto**: Disponibiliza uma interface interativa para testar e explorar os endpoints da API.
 - **Benefícios**: Facilita a integração e o entendimento da API por desenvolvedores e consumidores.
+
+---
+
+## **APM Server**
+ O APM Server coleta métricas e logs das aplicações e os envia para o Elasticsearch.
+
+---
+
+## **Elasticsearch**
+2️⃣ O Elasticsearch armazena e indexa os dados recebidos.
+
+---
+
+## **Kibana**
+3️⃣ O Kibana permite visualizar os logs e métricas em dashboards interativos.
 
 ---
