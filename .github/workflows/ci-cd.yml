@@ -1,0 +1,35 @@
+name: CI/CD Pipeline API controle-lancamentos
+
+# Eventos que disparam o workflow
+on:
+  pull_request:
+    branches: [ "master-controle-lancamentos" ]
+    
+jobs:
+  # Job de Integração Contínua (CI)
+  ci:
+    name: Integração Contínua
+    runs-on: ubuntu-latest
+    
+    steps:
+    # Checkout do código
+    - name: Checkout do repositório
+      uses: actions/checkout@v4
+    
+    # Configurar ambiente .NET
+    - name: Configurar .NET ${{ env.DOTNET_VERSION }}
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+    
+    # Restaurar dependências
+    - name: Restaurar dependências
+      run: dotnet restore
+    
+    # Construir projeto
+    - name: Construir projeto
+      run: dotnet build --no-restore -c Release
+    
+    # Executar testes
+    - name: Executar testes
+      run: dotnet test --no-build --verbosity normal    
