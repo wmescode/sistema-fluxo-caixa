@@ -1,5 +1,16 @@
 version: '3.8'
 
+x-environment-common: &common_appsettings
+  ConnectionStrings:Redis: "redis_cache:6379,password=fintech@0152"
+  ElasticApm:SecretToken: null,
+  ElasticApm:Environment: Development
+  ElasticApm:ServerUrls: http://apm-server:8200
+  ElasticApm:TransactionSampleRate: 1.0
+  ElasticApm:SpanFramesMinDuration: 200ms  
+  ElasticSearch:Url: http://elasticsearch:9200 
+  ElasticApm:LogLevel: Warning
+  ElasticApm:Enabled: true  
+
 services:
   sistema.fluxo.caixa.database:
     container_name: postgres_database
@@ -11,7 +22,8 @@ services:
     ports:
       - "5432:5432"
     restart: unless-stopped
-
+    networks:
+      - app-network                
 
   sistema.fluxo.caixa.cache:
     container_name: redis_cache 
@@ -22,8 +34,11 @@ services:
        MONGO_INITDB_ROOT_PASSWORD:  fintech@0152
     ports:
        - "6379:6379"
+    networks:
+      - app-network                   
        
   elasticsearch:
+    container_name: elasticsearch
     image: docker.elastic.co/elasticsearch/elasticsearch:7.16.0
     environment:
       - discovery.type=single-node
@@ -31,8 +46,11 @@ services:
     ports:
       - "9200:9200"
       - "9300:9300"    
+    networks:
+      - app-network                  
 
   kibana:
+    container_name: kibana
     image: docker.elastic.co/kibana/kibana:7.16.0
     ports:
       - "5601:5601"
@@ -40,6 +58,8 @@ services:
       - elasticsearch
     environment:
       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    networks:
+      - app-network                  
 
   apm-server:
     image: docker.elastic.co/apm/apm-server:7.16.0
@@ -55,3 +75,39 @@ services:
       - apm-server.kibana.host="http://kibana:5601"
     depends_on:
       - elasticsearch
+    networks:
+      - app-network                  
+      
+  controle-lancamentos.api:
+    container_name: controle_lancamentos_api
+    image: ${DOCKER_REGISTRY-}controlelancamentosapi
+    build:
+      context: \ControleLancamentos\      
+    environment:       
+      <<: *common_appsettings
+      ElasticApm:ServiceName: ControleLancamentosService
+      ConnectionStrings:PostgreSql: "Server=postgres_database;Port=5432;Database=controle-lancamentos;User Id=root;Password=fintech@0152;TrustServerCertificate=True"      
+      ASPNETCORE_ENVIRONMENT: Development          
+    networks:
+      - app-network            
+    ports:
+      - "8082:8080"            
+      
+  consolidado-diario.api:
+    container_name: consolidado_diario_api
+    image: ${DOCKER_REGISTRY-}consolidadodiarioapi
+    build:
+      context: \ConsolidadoDiario\      
+    environment:       
+      <<: *common_appsettings
+      ElasticApm:ServiceName: ConsolidadoDiarioSerrvice
+      ConnectionStrings:PostgreSql: "Server=postgres_database;Port=5432;Database=consolidado-diario;User Id=root;Password=fintech@0152;TrustServerCertificate=True"      
+      ASPNETCORE_ENVIRONMENT: Development           
+    networks:
+      - app-network            
+    ports:
+      - "8083:8080"                  
+      
+networks:
+  app-network:
+    driver: bridge      
