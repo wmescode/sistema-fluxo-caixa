@@ -5,6 +5,10 @@ on:
   pull_request:
     branches: [ "master-controle-lancamentos" ]
     
+# Variáveis de ambiente
+env:
+  DOTNET_VERSION: 8.0.x    
+  
 jobs:
   # Job de Integração Contínua (CI)
   ci:
