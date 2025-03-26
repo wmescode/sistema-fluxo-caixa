@@ -2,8 +2,10 @@ name: CI/CD Pipeline API controle-lancamentos
 
 # Eventos que disparam o workflow
 on:
-  [pull_request, push]:
+  pull_request:
     branches: [ "master-controle-lancamentos" ]
+  push:
+    branches: [ "master-controle-lancamentos" ]    
     
 # Variáveis de ambiente
 env:
@@ -25,6 +27,15 @@ jobs:
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
+        
+    # Cache de dependências
+    - name: Cache de dependências
+      uses: actions/cache@v4
+      with:
+        path: ~/.nuget/packages
+        key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+        restore-keys: |
+          ${{ runner.os }}-nuget-        
     
     # Restaurar dependências
     - name: Restaurar dependências
