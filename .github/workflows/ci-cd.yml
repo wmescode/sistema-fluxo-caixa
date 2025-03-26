@@ -2,7 +2,7 @@ name: CI/CD Pipeline API controle-lancamentos
 
 # Eventos que disparam o workflow
 on:
-  pull_request:
+  [pull_request, push]:
     branches: [ "master-controle-lancamentos" ]
     
 # Variáveis de ambiente
