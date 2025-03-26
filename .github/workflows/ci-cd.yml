@@ -1,39 +1,47 @@
 name: CI/CD Pipeline API controle-lancamentos
 
-# Eventos que disparam o workflow
 on:
   pull_request:
     branches: [ "master-controle-lancamentos" ]
     
-# Variáveis de ambiente
 env:
-  DOTNET_VERSION: 9.0.x    
+  DOTNET_VERSION: 9.0.x  # Consider using exact version like "9.0.100-preview.5"
   
 jobs:
-  # Job de Integração Contínua (CI)
   ci:
     name: Integração Contínua
     runs-on: ubuntu-latest
     
     steps:
-    # Checkout do código
     - name: Checkout do repositório
       uses: actions/checkout@v4
     
-    # Configurar ambiente .NET
-    - name: Configurar .NET ${{ env.DOTNET_VERSION }}
+    # Add environment setup
+    - name: Setup .NET Core SDK
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
     
-    # Restaurar dependências
+    # Add certificate trust for development (if needed)
+    - name: Trust development certificate
+      run: dotnet dev-certs https --trust
+    
+    # Restore with lock file
     - name: Restaurar dependências
-      run: dotnet restore
+      run: dotnet restore --use-lock-file
     
-    # Construir projeto
+    # Build with warning as errors
     - name: Construir projeto
-      run: dotnet build --no-restore -c Release
+      run: dotnet build --no-restore -c Release --warnaserror
     
-    # Executar testes
+    # Test with coverage
     - name: Executar testes
-      run: dotnet test --no-build --verbosity normal    
+      run: dotnet test --no-build --verbosity normal --collect:"XPlat Code Coverage"
+    
+    # Optional: Publish test results
+    - name: Publish Test Results
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: test-results
+        path: TestResults/
