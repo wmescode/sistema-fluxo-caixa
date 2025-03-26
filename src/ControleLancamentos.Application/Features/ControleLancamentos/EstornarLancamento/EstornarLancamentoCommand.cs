@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace ControleLancamentos.Application.Features.ControleLancamentos.EstornarLancamento
 {
-    class EstornarLancamentoCommand
+    public class EstornarLancamentoCommand
     {
     }
 }
