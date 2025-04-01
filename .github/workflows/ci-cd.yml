@@ -148,8 +148,7 @@ jobs:
             --service-name ${{ env.ECS_SERVICE }} \
             --task-definition ${{ env.ECS_TASK_DEFINITION }} \
             --desired-count 1 \
-            --launch-type EC2 \
-            --network-configuration "bridge"
+            --launch-type EC2
         else
           echo "Serviço encontrado: $SERVICE_EXISTS"
         fi
