@@ -139,76 +139,27 @@ jobs:
         
     - name: Criar Serviço no ECS (se não existir)
       run: |
-        echo "Verificando se o serviço ${{ env.ECS_SERVICE }} existe no cluster ${{ env.ECS_CLUSTER }}..."
+        # Verificar se o cluster existe
+        CLUSTER_EXISTS=$(aws ecs describe-clusters --clusters ${{ env.ECS_CLUSTER }} --query 'clusters[0].clusterArn' --output text 2>/dev/null || echo "MISSING")
         
-        # Adicionar mais informações de diagnóstico
-        aws ecs describe-services \
-          --cluster ${{ env.ECS_CLUSTER }} \
-          --services ${{ env.ECS_SERVICE }} \
-          --output json || echo "Falha ao verificar serviço, isso é esperado se ele não existir"
+        if [ "$CLUSTER_EXISTS" == "MISSING" ]; then
+          echo "Cluster não encontrado, criando..."
+          aws ecs create-cluster --cluster-name ${{ env.ECS_CLUSTER }}
+        fi
         
-        SERVICE_EXISTS=$(aws ecs describe-services \
-          --cluster ${{ env.ECS_CLUSTER }} \
-          --services ${{ env.ECS_SERVICE }} \
-          --query 'services[0].serviceArn' \
-          --output text 2>/dev/null || echo "MISSING")
-        
-        echo "Status do serviço: $SERVICE_EXISTS"
+        # Verificar se o serviço existe no formato correto (incluindo o nome do cluster)
+        SERVICE_EXISTS=$(aws ecs list-services --cluster ${{ env.ECS_CLUSTER }} | grep ${{ env.ECS_SERVICE }} || echo "MISSING")
         
         if [ "$SERVICE_EXISTS" == "MISSING" ]; then
           echo "Serviço não encontrado, criando..."
-          
-          # Verificar se o cluster existe
-          CLUSTER_EXISTS=$(aws ecs describe-clusters \
-            --clusters ${{ env.ECS_CLUSTER }} \
-            --query 'clusters[0].clusterArn' \
-            --output text 2>/dev/null || echo "MISSING")
-            
-          echo "Status do cluster: $CLUSTER_EXISTS"
-          
-          if [ "$CLUSTER_EXISTS" == "MISSING" ]; then
-            echo "ERRO: O cluster não existe!"
-            exit 1
-          fi
-          
-          # Verificar se a Task Definition existe
-          TD_EXISTS=$(aws ecs describe-task-definition \
-            --task-definition ${{ env.ECS_TASK_DEFINITION }} \
-            --query 'taskDefinition.taskDefinitionArn' \
-            --output text 2>/dev/null || echo "MISSING")
-            
-          echo "Status da Task Definition: $TD_EXISTS"
-          
-          if [ "$TD_EXISTS" == "MISSING" ]; then
-            echo "ERRO: A Task Definition não existe!"
-            exit 1
-          fi
-          
-          # Tentar criar o serviço com saída detalhada
-          echo "Executando comando de criação do serviço..."
           aws ecs create-service \
             --cluster ${{ env.ECS_CLUSTER }} \
             --service-name ${{ env.ECS_SERVICE }} \
             --task-definition ${{ env.ECS_TASK_DEFINITION }} \
             --desired-count 1 \
-            --launch-type EC2 \
-            --debug
-          
-          # Verificar se o serviço foi criado
-          VERIFY_SERVICE=$(aws ecs describe-services \
-            --cluster ${{ env.ECS_CLUSTER }} \
-            --services ${{ env.ECS_SERVICE }} \
-            --query 'services[0].serviceArn' \
-            --output text 2>/dev/null || echo "AINDA_MISSING")
-            
-          echo "Status após tentativa de criação: $VERIFY_SERVICE"
-          
-          if [ "$VERIFY_SERVICE" == "AINDA_MISSING" ]; then
-            echo "ERRO: Falha ao criar o serviço!"
-            exit 1
-          fi
+            --launch-type EC2
         else
-          echo "Serviço encontrado: $SERVICE_EXISTS"
+          echo "Serviço encontrado no cluster"
         fi
 
     - name: Recuperar secrets e atualizar Task Definition
