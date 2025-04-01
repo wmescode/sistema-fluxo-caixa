@@ -16,7 +16,7 @@ env:
   ECR_REPOSITORY: "api-controle-lancamentos"  
   ECS_CLUSTER: "sistema-fluxo-caixa"
   ECS_SERVICE: "api-controle-lancamentos-service"
-  ECS_TASK_DEFINITION: "Task-Deinition-APIs-Controle-Fluxo-Caixa"
+  ECS_TASK_DEFINITION: "Task-Definition-APIs-Controle-Fluxo-Caixa"
   CONTAINER_NAME: "api-controle-lancamento"
   SECRET_NAME: "credentials-api-controle-lancamento"
   
@@ -149,7 +149,7 @@ jobs:
             --task-definition ${{ env.ECS_TASK_DEFINITION }} \
             --desired-count 1 \
             --launch-type EC2 \
-            --network-configuration "awsvpcConfiguration={subnets=[wmes-subnet-a,wmes-subnet-b,wmes-subnet-a],securityGroups=[sg-049cd7d673304c60f],assignPublicIp=ENABLED}"
+            --network-configuration "bridge"
         else
           echo "Serviço encontrado: $SERVICE_EXISTS"
         fi
