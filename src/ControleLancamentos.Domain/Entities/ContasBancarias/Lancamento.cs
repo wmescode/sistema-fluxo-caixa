@@ -17,7 +17,7 @@ namespace ControleLancamentos.Domain.Entities.ContasBancarias
         /// <summary>
         /// Tipo do lançamento: débito ou crédito.
         /// </summary>
-        public TipoTransacao Tipo { get; set; }        
+        public TipoTransacao Tipo { get; set; }
         /// <summary>
         /// Descrição do lançamento
         /// </summary>
@@ -26,7 +26,7 @@ namespace ControleLancamentos.Domain.Entities.ContasBancarias
         public ContaBancaria Conta { get; private set; }
 
         public Lancamento(decimal valor, TipoTransacao tipoTransacao, string? descricao, ContaBancaria conta)
-        {            
+        {
             Id = Guid.NewGuid();
             ContaId = conta.Id;
             Data = DateTime.UtcNow;
@@ -35,7 +35,7 @@ namespace ControleLancamentos.Domain.Entities.ContasBancarias
             Descricao = descricao;
             Conta = conta;
         }
-        public Lancamento(){}
+        public Lancamento() { }
 
         public void Estornar()
         {

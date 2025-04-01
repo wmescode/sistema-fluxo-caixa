@@ -13,7 +13,7 @@ namespace ControleLancamentos.IoC
     {
         public static IServiceCollection AddInfraestructure(this IServiceCollection services, IConfiguration configuration)
         {            
-            var connectionString = configuration.GetConnectionString("PostgreSql");
+                var connectionString = configuration.GetConnectionString("PostgreSql");
             services.AddDbContext<DefaultContext>(options =>
             {
                 options.UseNpgsql(connectionString,
@@ -21,8 +21,19 @@ namespace ControleLancamentos.IoC
                     ).LogTo(Console.WriteLine, LogLevel.Information);
             }, ServiceLifetime.Transient);
 
-            var redisConnectionString = configuration.GetConnectionString("Redis");
-            services.AddSingleton<IConnectionMultiplexer>(ConnectionMultiplexer.Connect(redisConnectionString));
+            //try
+            //{
+            //    var redisConnectionString = configuration.GetConnectionString("Redis");
+            //    services.AddSingleton<IConnectionMultiplexer>(ConnectionMultiplexer.Connect(redisConnectionString));
+            //}
+            //catch {}
+
+            services.AddSingleton<IConnectionMultiplexer>(sp =>
+            {
+                var redisConnectionString = configuration.GetConnectionString("Redis");
+                return ConnectionMultiplexer.Connect(redisConnectionString);
+            });
+
 
             services.AddScoped<IContaBancariaRepository, ContaBancariaRepository>();
 

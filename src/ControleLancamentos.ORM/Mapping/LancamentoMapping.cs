@@ -7,7 +7,7 @@ namespace ControleLancamentos.ORM.Mapping
     public class LancamentoMapping : IEntityTypeConfiguration<Lancamento>
     {
         public void Configure(EntityTypeBuilder<Lancamento> builder)
-        {            
+        {
             builder.HasKey(e => e.Id);
             builder.Property(e => e.Data)
                 .IsRequired();
@@ -21,7 +21,7 @@ namespace ControleLancamentos.ORM.Mapping
             builder.Property(e => e.Descricao)
                 .IsRequired(false);
             builder.Property(e => e.Estornado)
-                .IsRequired();            
+                .IsRequired();
             builder.HasOne(e => e.Conta)
                 .WithMany(e => e.Lancamentos)
                 .HasForeignKey(e => e.ContaId);

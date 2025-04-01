@@ -1,43 +1,44 @@
 name: CI/CD Pipeline API controle-lancamentos
 
-# Eventos que disparam o workflow
 on:
   pull_request:
     branches: [ "master-controle-lancamentos" ]
   push:
     branches: [ "master-controle-lancamentos" ]    
     
-# Variáveis de ambiente
-env: 
-  DOTNET_VERSION: "9.0.100" # Use exact version instead of "9.0.x"
-  NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
-  BUILD_CONFIGURATION: "Release"  
+env:
+  # Configurações gerais
+  DOTNET_VERSION: "9.0.100"   
+  BUILD_CONFIGURATION: "Release"
   
-jobs:
-  # Job de Integração Contínua (CI)
+  # AWS Resources
+  AWS_REGION: "us-east-1"
+  ECR_REPOSITORY: "api-controle-lancamentos"  
+  ECS_CLUSTER: "sistema-fluxo-caixa"
+  ECS_SERVICE: "api-controle-lancamentos-service"
+  ECS_TASK_DEFINITION: "Task-Deinition-APIs-Controle-Fluxo-Caixa"
+  CONTAINER_NAME: "api-controle-lancamento"
+  SECRET_NAME: "credentials-api-controle-lancamento"
+  
+  # Resource Settings
+  CPU: 256
+  MEMORY: 512
+  CONTAINER_PORT: 80
+  
+jobs:  
   ci:
     name: Integração Contínua
     runs-on: ubuntu-latest
     
-    steps:
-    # Checkout do código
+    steps:    
     - name: Checkout do repositório
       uses: actions/checkout@v4
-      with:
-        fetch-depth: 0      
 
     - name: Setup .NET SDK
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: ${{ env.DOTNET_VERSION }}        
-    
-    # Configurar ambiente .NET
-    - name: Configurar .NET ${{ env.DOTNET_VERSION }}
-      uses: actions/setup-dotnet@v4
-      with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
-        
-    # Cache de dependências
+            
     - name: Cache de dependências
       uses: actions/cache@v4
       with:
@@ -45,19 +46,16 @@ jobs:
         key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
         restore-keys: |
           ${{ runner.os }}-nuget-        
-    
-    # Restaurar dependências
+        
     - name: Restaurar dependências
       run: dotnet restore
-    
-    # Construir projeto
+        
     - name: Construir projeto
       run: dotnet build --no-restore -c ${{ env.BUILD_CONFIGURATION }} --verbosity normal
       env:
         DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
         DOTNET_NOLOGO: true
         
-    # Executar testes
     - name: Executar testes
       run: |
         dotnet test --no-build -c ${{ env.BUILD_CONFIGURATION }} \
@@ -66,4 +64,167 @@ jobs:
           --blame-hang \
           --blame-hang-timeout 2m
       env:
-        DOTNET_CLI_TELEMETRY_OPTOUT: 1
+        DOTNET_CLI_TELEMETRY_OPTOUT: 1        
+        
+  cd:
+    name: Entrega Contínua
+    needs: ci
+    runs-on: ubuntu-latest
+    environment: AWS_DEVELOP
+    
+    steps:
+    - name: Checkout do repositório
+      uses: actions/checkout@v4
+
+    - name: Configurar credenciais AWS
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Verificar/Criar Task Definition
+      id: ensure-task-definition
+      run: |
+        # Verificar se a Task Definition existe
+        if aws ecs describe-task-definition \
+          --task-definition ${{ env.ECS_TASK_DEFINITION }} &>/dev/null; then
+          echo "task-definition-exists=true" >> $GITHUB_OUTPUT
+        else
+          # Criar Task Definition básica
+          echo "::group::Criando nova Task Definition"
+          aws ecs register-task-definition \
+            --family ${{ env.ECS_TASK_DEFINITION }} \
+            --network-mode bridge \
+            --requires-compatibilities EC2 \
+            --cpu ${{ env.CPU }} \
+            --memory ${{ env.MEMORY }} \
+            --execution-role-arn arn:aws:iam::615299770324:role/ecsTaskExecutionRole \
+            --container-definitions "[{
+              \"name\": \"${{ env.CONTAINER_NAME }}\",
+              \"image\": \"nginx:alpine\",
+              \"cpu\": ${{ env.CPU }},
+              \"memory\": ${{ env.MEMORY }},
+              \"essential\": true,
+              \"portMappings\": [{
+                \"containerPort\": ${{ env.CONTAINER_PORT }},
+                \"protocol\": \"tcp\"
+              }],
+              \"logConfiguration\": {
+                \"logDriver\": \"awslogs\",
+                \"options\": {
+                  \"awslogs-group\": \"/ecs/${{ env.ECS_TASK_DEFINITION }}\",
+                  \"awslogs-region\": \"${{ env.AWS_REGION }}\",
+                  \"awslogs-stream-prefix\": \"ecs\"
+                }
+              }
+            }]"
+          echo "::endgroup::"
+          echo "task-definition-exists=false" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Login no Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v1
+      
+    - name: Construir e enviar imagem ECR
+      id: build-image
+      env:
+        ECR_REGISTRY: 615299770324.dkr.ecr.us-east-1.amazonaws.com
+        IMAGE_TAG: ${{ github.sha }}
+      run: |
+        docker build -t $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:$IMAGE_TAG -f Dockerfile .
+        docker push $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:$IMAGE_TAG
+        echo "image=$ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+    - name: Recuperar secrets e atualizar Task Definition
+      id: update-task-def
+      run: |
+        # Baixar task definition atual
+        aws ecs describe-task-definition \
+          --task-definition ${{ env.ECS_TASK_DEFINITION }} \
+          --query 'taskDefinition' > current-task-definition.json
+        
+        # Recuperar secrets
+        SECRETS_JSON=$(aws secretsmanager get-secret-value \
+          --secret-id ${{ env.SECRET_NAME }} \
+          --query SecretString \
+          --output text)
+        
+        # Validar JSON
+        if ! jq -e . <<< "$SECRETS_JSON"; then
+          echo "::error::Formato inválido do secret"
+          exit 1
+        fi
+
+        # Processar secrets
+        REDIS_CONN=$(jq -r '."ConnectionStrings:Redis"' <<< "$SECRETS_JSON")
+        PG_CONN=$(jq -r '."ConnectionStrings:PostgreSql"' <<< "$SECRETS_JSON")
+        ASPNET_ENV=$(jq -r '.ASPNETCORE_ENVIRONMENT // "Production"' <<< "$SECRETS_JSON")
+
+        # Atualizar task definition
+        jq \
+          --arg image "${{ steps.build-image.outputs.image }}" \
+          --arg redis "$REDIS_CONN" \
+          --arg pg "$PG_CONN" \
+          --arg env "$ASPNET_ENV" \
+          --arg name "${{ env.CONTAINER_NAME }}" \
+          '(.containerDefinitions[] | select(.name == $name)) |= 
+            (.image = $image |
+             .environment = [
+               {"name": "ConnectionStrings__Redis", "value": $redis},
+               {"name": "ConnectionStrings__PostgreSql", "value": $pg},
+               {"name": "ASPNETCORE_ENVIRONMENT", "value": $env}
+             ])' \
+          current-task-definition.json > updated-task-definition.json
+
+        echo "task-definition=updated-task-definition.json" >> $GITHUB_OUTPUT
+
+    - name: Registrar Task Definition atualizada
+      id: register-task-def
+      uses: aws-actions/amazon-ecs-register-task-definition@v1
+      with:
+        task-definition: ${{ steps.update-task-def.outputs.task-definition }}
+        wait-for-completion: true
+
+    - name: Verificar/Criar Serviço ECS
+      id: ensure-service
+      run: |
+        # Verificar se o serviço existe
+        if aws ecs describe-services \
+          --cluster ${{ env.ECS_CLUSTER }} \
+          --services ${{ env.ECS_SERVICE }} \
+          --query 'services[0].status' \
+          --output text | grep -q "ACTIVE"; then
+          echo "service-exists=true" >> $GITHUB_OUTPUT
+        else
+          # Criar serviço se não existir
+          echo "::group::Criando novo serviço ECS"
+          aws ecs create-service \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --service-name ${{ env.ECS_SERVICE }} \
+            --task-definition ${{ env.ECS_TASK_DEFINITION }} \
+            --launch-type EC2 \
+            --desired-count 1 \
+            --scheduling-strategy REPLICA \
+            --deployment-controller type=ECS
+          echo "::endgroup::"
+          echo "service-exists=false" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Implantar atualização no ECS
+      uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+      with:
+        service: ${{ env.ECS_SERVICE }}
+        cluster: ${{ env.ECS_CLUSTER }}
+        task-definition: ${{ steps.register-task-def.outputs.task-definition-arn }}
+        wait-for-service-stability: true
+        wait-for-minutes: 10
+
+    - name: Verificar status do serviço
+      run: |
+        aws ecs describe-services \
+          --cluster ${{ env.ECS_CLUSTER }} \
+          --services ${{ env.ECS_SERVICE }} \
+          --query 'services[0].[desiredCount,runningCount,deployments[].status]' \
+          --output text

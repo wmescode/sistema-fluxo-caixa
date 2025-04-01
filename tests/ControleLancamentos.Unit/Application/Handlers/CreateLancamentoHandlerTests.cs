@@ -1,13 +1,13 @@
 ﻿using ControleLancamentos.Application.Features.ControleLancamentos.CreateLancamento;
 using ControleLancamentos.Domain.Entities.ContasBancarias;
-using ControleLancamentos.Domain.Repositories;
 using ControleLancamentos.Domain.Enums;
+using ControleLancamentos.Domain.Events.ControleLancamentos;
+using ControleLancamentos.Domain.Repositories;
+using ControleLancamentos.Unit.TestData;
 using FluentAssertions;
 using FluentValidation;
 using MediatR;
 using NSubstitute;
-using ControleLancamentos.Domain.Events.ControleLancamentos;
-using ControleLancamentos.Unit.TestData;
 
 namespace ControleLancamentos.Unit.Application.Handlers
 {

@@ -1,7 +1,6 @@
-﻿using FluentAssertions;
-using ControleLancamentos.Domain.Enums;
-using Xunit;
+﻿using ControleLancamentos.Domain.Enums;
 using ControleLancamentos.Unit.TestData;
+using FluentAssertions;
 
 namespace ControleLancamentos.Unit.Domain.Entities
 {

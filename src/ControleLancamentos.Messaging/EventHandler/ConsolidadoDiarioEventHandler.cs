@@ -17,7 +17,7 @@ namespace ControleLancamentos.Messaging.EventHandler
         public async Task Handle(LancamentoCreatedEvent notification, CancellationToken cancellationToken)
         {
             var db = _redis.GetDatabase();
-            
+
             var eventoJson = JsonSerializer.Serialize(notification);
 
             await db.StreamAddAsync("lancamentos-consolidado-diario", new NameValueEntry[]
@@ -26,7 +26,7 @@ namespace ControleLancamentos.Messaging.EventHandler
                 new NameValueEntry("numeroContaBancaria", notification.NumeroContaBancaria),
                 new NameValueEntry("agenciaContaBancaria", notification.AgenciaContaBancaria),
                 new NameValueEntry("valor", notification.Valor.ToString(CultureInfo.InvariantCulture)),
-                new NameValueEntry("data", notification.Data.ToUniversalTime().ToString("o")), 
+                new NameValueEntry("data", notification.Data.ToUniversalTime().ToString("o")),
                 new NameValueEntry("tipo", notification.Tipo.ToString()),
                 new NameValueEntry("eventoJson", eventoJson)
             });

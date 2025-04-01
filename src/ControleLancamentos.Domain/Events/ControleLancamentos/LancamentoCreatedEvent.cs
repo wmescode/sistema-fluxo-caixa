@@ -10,14 +10,14 @@ namespace ControleLancamentos.Domain.Events.ControleLancamentos
         public string AgenciaContaBancaria { get; }
         public TipoTransacao Tipo { get; }
         public decimal Valor { get; }
-        public DateTime Data { get; }        
+        public DateTime Data { get; }
 
-        public LancamentoCreatedEvent(Guid eventId, 
-                                      string numeroContaBancaria, 
-                                      string agenciaContaBancaria, 
-                                      TipoTransacao tipo, 
-                                      decimal valor, 
-                                      DateTime data, 
+        public LancamentoCreatedEvent(Guid eventId,
+                                      string numeroContaBancaria,
+                                      string agenciaContaBancaria,
+                                      TipoTransacao tipo,
+                                      decimal valor,
+                                      DateTime data,
                                       CancellationToken cancellationToken = default)
         {
             EventId = eventId;
@@ -25,7 +25,7 @@ namespace ControleLancamentos.Domain.Events.ControleLancamentos
             AgenciaContaBancaria = agenciaContaBancaria;
             Tipo = tipo;
             Valor = valor;
-            Data = data;            
+            Data = data;
         }
     }
 }

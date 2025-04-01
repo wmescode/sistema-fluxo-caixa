@@ -32,7 +32,7 @@ namespace ControleLancamentos.ORM.Repositories
                 .AsNoTracking()
                 .Where(c => c.Lancamentos.Any(l => l.Id == lancamentoId))
                 .Include(c => c.Lancamentos
-                    .Where(l => l.Id == lancamentoId)) 
+                    .Where(l => l.Id == lancamentoId))
                 .FirstOrDefaultAsync(cancellationToken);
         }
     }

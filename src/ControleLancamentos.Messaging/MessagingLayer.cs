@@ -9,5 +9,5 @@
     /// retrieved using <c>typeof(MessagingLayer).Assembly</c>, which allows 
     /// other layers to programmatically reference the messaging layer's assembly.
     /// </remarks>
-    public class MessagingLayer {}
+    public class MessagingLayer { }
 }

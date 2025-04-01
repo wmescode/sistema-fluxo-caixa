@@ -17,7 +17,7 @@ namespace ControleLancamentos.IoC
                     typeof(MessagingLayer).Assembly
                 );
             });
-            
+
             services.AddTransient(typeof(IPipelineBehavior<,>), typeof(LoggingBehavior<,>));
 
             return services;

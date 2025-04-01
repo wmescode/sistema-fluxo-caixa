@@ -4,11 +4,11 @@ using ControleLancamentos.Domain.Enums;
 namespace ControleLancamentos.Domain.Entities.ContasBancarias
 {
     public class ContaBancaria : BaseEntity
-    {        
+    {
         public string Nome { get; set; } = string.Empty;
         public string Numero { get; set; } = string.Empty;
-        public string Agencia { get; set; } = string.Empty;        
-        public TipoContaBancaria Tipo { get; set; } 
+        public string Agencia { get; set; } = string.Empty;
+        public TipoContaBancaria Tipo { get; set; }
         public decimal Saldo { get; set; }
         public ICollection<Lancamento> Lancamentos { get; private set; } = new List<Lancamento>();
 
@@ -17,10 +17,10 @@ namespace ControleLancamentos.Domain.Entities.ContasBancarias
             Nome = nome;
             Numero = numero;
             Agencia = agencia;
-            Tipo = tipo;            
+            Tipo = tipo;
         }
 
-        public ContaBancaria(){}
+        public ContaBancaria() { }
 
         /// <summary>
         /// Gera um lançamento na conta bancária
@@ -42,7 +42,7 @@ namespace ControleLancamentos.Domain.Entities.ContasBancarias
             {
                 Saldo -= lancamento.Valor;
             }
-            
+
             return lancamento;
         }
 
@@ -58,9 +58,9 @@ namespace ControleLancamentos.Domain.Entities.ContasBancarias
                 var lancamento = Lancamentos.Where(a => a.Id == id).First();
                 lancamento.Estornar();
 
-                if (lancamento.Tipo == TipoTransacao.Credito)                
-                    Saldo -= lancamento.Valor;                
-                else                
+                if (lancamento.Tipo == TipoTransacao.Credito)
+                    Saldo -= lancamento.Valor;
+                else
                     Saldo += lancamento.Valor;
             }
             catch

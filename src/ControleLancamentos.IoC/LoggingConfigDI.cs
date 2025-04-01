@@ -1,12 +1,12 @@
-﻿using Microsoft.Extensions.Configuration;
-using Elastic.Apm.SerilogEnricher;
+﻿using Elastic.Apm.SerilogEnricher;
 using Elastic.Channels;
 using Elastic.Ingest.Elasticsearch;
 using Elastic.Ingest.Elasticsearch.DataStreams;
 using Elastic.Serilog.Sinks;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 using Serilog.Events;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace ControleLancamentos.IoC
 {

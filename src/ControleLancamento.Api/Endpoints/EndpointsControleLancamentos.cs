@@ -6,7 +6,7 @@ namespace ControleLancamento.Api.Endpoints
 {
     public static class EndpointsControleLancamentos
     {
-        public static void AddControleLancamentosEndpoints (this IEndpointRouteBuilder app)
+        public static void AddControleLancamentosEndpoints(this IEndpointRouteBuilder app)
         {
             app.MapPost("/api/lancamento", async (
                 CreateLancamentoCommand request,

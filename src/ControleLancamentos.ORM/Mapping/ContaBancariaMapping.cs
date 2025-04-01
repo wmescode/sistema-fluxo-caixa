@@ -7,7 +7,7 @@ namespace ControleLancamentos.ORM.Mapping
     public class ContaBancariaMapping : IEntityTypeConfiguration<ContaBancaria>
     {
         public void Configure(EntityTypeBuilder<ContaBancaria> builder)
-        {            
+        {
             builder.HasKey(e => e.Id);
             builder.Property(e => e.Nome)
                 .IsRequired()
@@ -24,7 +24,7 @@ namespace ControleLancamentos.ORM.Mapping
             builder.Property(e => e.Saldo)
                 .IsRequired();
             builder.HasMany(e => e.Lancamentos)
-                .WithOne(e => e.Conta);                
+                .WithOne(e => e.Conta);
         }
     }
 }
