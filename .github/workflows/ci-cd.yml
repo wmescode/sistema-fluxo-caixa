@@ -180,40 +180,8 @@ jobs:
 
         echo "task-definition=updated-task-definition.json" >> $GITHUB_OUTPUT
 
-    - name: Registrar Task Definition atualizada
-      id: register-task-def
-      uses: aws-actions/amazon-ecs-register-task-definition@v1.2.0
-      with:
-        task-definition: ${{ steps.update-task-def.outputs.task-definition }}
-        wait-for-completion: true
-
-    - name: Verificar/Criar Serviço ECS
-      id: ensure-service
-      run: |
-        # Verificar se o serviço existe
-        if aws ecs describe-services \
-          --cluster ${{ env.ECS_CLUSTER }} \
-          --services ${{ env.ECS_SERVICE }} \
-          --query 'services[0].status' \
-          --output text | grep -q "ACTIVE"; then
-          echo "service-exists=true" >> $GITHUB_OUTPUT
-        else
-          # Criar serviço se não existir
-          echo "::group::Criando novo serviço ECS"
-          aws ecs create-service \
-            --cluster ${{ env.ECS_CLUSTER }} \
-            --service-name ${{ env.ECS_SERVICE }} \
-            --task-definition ${{ env.ECS_TASK_DEFINITION }} \
-            --launch-type EC2 \
-            --desired-count 1 \
-            --scheduling-strategy REPLICA \
-            --deployment-controller type=ECS
-          echo "::endgroup::"
-          echo "service-exists=false" >> $GITHUB_OUTPUT
-        fi
-
     - name: Implantar atualização no ECS
-      uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+      uses: aws-actions/amazon-ecs-deploy-task-definition@v2
       with:
         service: ${{ env.ECS_SERVICE }}
         cluster: ${{ env.ECS_CLUSTER }}
