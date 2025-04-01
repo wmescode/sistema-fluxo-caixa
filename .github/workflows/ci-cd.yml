@@ -182,7 +182,7 @@ jobs:
 
     - name: Registrar Task Definition atualizada
       id: register-task-def
-      uses: aws-actions/amazon-ecs-register-task-definition@v1
+      uses: aws-actions/amazon-ecs-register-task-definition@v2
       with:
         task-definition: ${{ steps.update-task-def.outputs.task-definition }}
         wait-for-completion: true
