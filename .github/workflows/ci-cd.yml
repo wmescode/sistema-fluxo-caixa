@@ -14,9 +14,9 @@ env:
   # AWS Resources
   AWS_REGION: "us-east-1"
   ECR_REPOSITORY: "api-controle-lancamentos"  
-  ECS_CLUSTER: "sistema-fluxo-caixa-2"
+  ECS_CLUSTER: "sistema-fluxo-caixa"
   ECS_SERVICE: "api-controle-lancamentos-service"
-  ECS_TASK_DEFINITION: "controle-lancamentos-task-definition"
+  ECS_TASK_DEFINITION: "Task-Definition-APIs-Controle-Fluxo-Caixa"
   CONTAINER_NAME: "api-controle-lancamento"
   SECRET_NAME: "credentials-api-controle-lancamento"
   
@@ -82,6 +82,46 @@ jobs:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: ${{ env.AWS_REGION }}
+
+    - name: Verificar/Criar Task Definition
+      id: ensure-task-definition
+      run: |
+        # Verificar se a Task Definition existe
+        if aws ecs describe-task-definition \
+          --task-definition ${{ env.ECS_TASK_DEFINITION }} &>/dev/null; then
+          echo "task-definition-exists=true" >> $GITHUB_OUTPUT
+        else
+          # Criar Task Definition básica
+          echo "::group::Criando nova Task Definition"
+          aws ecs register-task-definition \
+            --family ${{ env.ECS_TASK_DEFINITION }} \
+            --network-mode bridge \
+            --requires-compatibilities EC2 \
+            --cpu ${{ env.CPU }} \
+            --memory ${{ env.MEMORY }} \
+            --execution-role-arn arn:aws:iam::615299770324:role/ecsTaskExecutionRole \
+            --container-definitions "[{
+              \"name\": \"${{ env.CONTAINER_NAME }}\",
+              \"image\": \"nginx:alpine\",
+              \"cpu\": ${{ env.CPU }},
+              \"memory\": ${{ env.MEMORY }},
+              \"essential\": true,
+              \"portMappings\": [{
+                \"containerPort\": ${{ env.CONTAINER_PORT }},
+                \"protocol\": \"tcp\"
+              }],
+              \"logConfiguration\": {
+                \"logDriver\": \"awslogs\",
+                \"options\": {
+                  \"awslogs-group\": \"/ecs/${{ env.ECS_TASK_DEFINITION }}\",
+                  \"awslogs-region\": \"${{ env.AWS_REGION }}\",
+                  \"awslogs-stream-prefix\": \"ecs\"
+                }
+              }
+            }]"
+          echo "::endgroup::"
+          echo "task-definition-exists=false" >> $GITHUB_OUTPUT
+        fi
 
     - name: Login no Amazon ECR
       id: login-ecr
