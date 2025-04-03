@@ -82,6 +82,10 @@ jobs:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: ${{ env.AWS_REGION }}
+        
+    - name: Criar grupo de logs CloudWatch
+      run: |
+        aws logs create-log-group --log-group-name "/ecs/${{ env.ECS_TASK_DEFINITION }}" || true        
 
     - name: Verificar/Criar Task Definition
       id: ensure-task-definition
