@@ -118,6 +118,7 @@ jobs:
             --task-definition ${{ env.ECS_TASK_DEFINITION }} \
             --desired-count 1 \
             --launch-type EC2
+            --network-configuration "awsvpcConfiguration={subnets=[subnet-0be76194da2d231db,subnet-018be35017ccbcca6,subnet-0342acbf769b203fe],securityGroups=[sg-049cd7d673304c60f],assignPublicIp=DISABLED}"            
         else
           echo "Serviço encontrado no cluster"
         fi
