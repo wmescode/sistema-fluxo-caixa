@@ -14,9 +14,9 @@ env:
   # AWS Resources
   AWS_REGION: "us-east-1"
   ECR_REPOSITORY: "api-controle-lancamentos"  
-  ECS_CLUSTER: "sistema-fluxo-caixa"
+  ECS_CLUSTER: "sistema-fluxo-caixa-2"
   ECS_SERVICE: "api-controle-lancamentos-service"
-  ECS_TASK_DEFINITION: "Task-Definition-APIs-Controle-Fluxo-Caixa"
+  ECS_TASK_DEFINITION: "api-controle-lancamentos-task-definition"
   CONTAINER_NAME: "api-controle-lancamento"
   SECRET_NAME: "credentials-api-controle-lancamento"
   
