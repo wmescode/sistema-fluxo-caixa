@@ -244,28 +244,32 @@ jobs:
     environment: AWS_DEVELOP
     
     steps:
+    - name: Checkout do repositório
+      uses: actions/checkout@v4
+      
     - name: Configurar credenciais AWS
       uses: aws-actions/configure-aws-credentials@v4
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: ${{ env.AWS_REGION }}
-
-    - name: Download da Task Definition atualizada
-      uses: actions/download-artifact@v2
-      with:
-        name: task-definition
-        path: ./
-
+        
+    # Este step baixa a task definition do job anterior
+    - name: Baixar Task Definition
+      run: |
+        aws ecs describe-task-definition \
+          --task-definition ${{ env.ECS_TASK_DEFINITION }} \
+          --query 'taskDefinition' > task-definition.json
+    
     - name: Implantar atualização no ECS
       uses: aws-actions/amazon-ecs-deploy-task-definition@v2
       with:
         service: ${{ env.ECS_SERVICE }}
         cluster: ${{ env.ECS_CLUSTER }}
-        task-definition: ${{ needs.prepare-infrastructure.outputs.task-definition }}
+        task-definition: task-definition.json
         wait-for-service-stability: true
         wait-for-minutes: 10
-
+        
     - name: Verificar status do serviço
       run: |
         aws ecs describe-services \
