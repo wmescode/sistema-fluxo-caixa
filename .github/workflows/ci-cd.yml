@@ -18,7 +18,7 @@ env:
   ECS_SERVICE: "api-controle-lancamentos-service"
   ECS_TASK_DEFINITION: "api-controle-lancamentos-task-definition"
   CONTAINER_NAME: "api-controle-lancamento"
-  SECRET_NAME: "credentials-api-controle-lancamento"
+  SECRET_NAME: "credentials-api-controle-lancamento"  
   
   # Resource Settings
   CPU: 256
@@ -26,8 +26,9 @@ env:
   CONTAINER_PORT: 80
   
 jobs:  
-  ci:
-    name: Integração Contínua
+  # Job 1: Build e Testes
+  build-and-test:
+    name: Build e Testes
     runs-on: ubuntu-latest
     
     steps:    
@@ -64,13 +65,50 @@ jobs:
           --blame-hang \
           --blame-hang-timeout 2m
       env:
-        DOTNET_CLI_TELEMETRY_OPTOUT: 1        
-        
-  cd:
-    name: Entrega Contínua
-    needs: ci
+        DOTNET_CLI_TELEMETRY_OPTOUT: 1
+
+  # Job 2: Build e Push da Imagem Docker
+  build-docker-image:
+    name: Build e Push da Imagem Docker
+    needs: build-and-test
     runs-on: ubuntu-latest
     environment: AWS_DEVELOP
+    outputs:
+      image: ${{ steps.build-image.outputs.image }}
+    
+    steps:
+    - name: Checkout do repositório
+      uses: actions/checkout@v4
+
+    - name: Configurar credenciais AWS
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Login no Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v1
+      
+    - name: Construir e enviar imagem ECR
+      id: build-image
+      env:
+        ECR_REGISTRY: 615299770324.dkr.ecr.us-east-1.amazonaws.com
+        IMAGE_TAG: ${{ github.sha }}
+      run: |
+        docker build -t $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:$IMAGE_TAG -f Dockerfile .
+        docker push $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:$IMAGE_TAG
+        echo "image=$ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+  # Job 3: Preparação da Infraestrutura
+  prepare-infrastructure:
+    name: Preparação da Infraestrutura
+    needs: build-docker-image
+    runs-on: ubuntu-latest
+    environment: AWS_DEVELOP
+    outputs:
+      task-definition: ${{ steps.update-task-def.outputs.task-definition }}
     
     steps:
     - name: Checkout do repositório
@@ -112,6 +150,7 @@ jobs:
               \"essential\": true,
               \"portMappings\": [{
                 \"containerPort\": ${{ env.CONTAINER_PORT }},
+                \"hostPort\": ${{ env.CONTAINER_PORT }},
                 \"protocol\": \"tcp\"
               }],
               \"logConfiguration\": {
@@ -126,20 +165,6 @@ jobs:
           echo "::endgroup::"
           echo "task-definition-exists=false" >> $GITHUB_OUTPUT
         fi
-
-    - name: Login no Amazon ECR
-      id: login-ecr
-      uses: aws-actions/amazon-ecr-login@v1
-      
-    - name: Construir e enviar imagem ECR
-      id: build-image
-      env:
-        ECR_REGISTRY: 615299770324.dkr.ecr.us-east-1.amazonaws.com
-        IMAGE_TAG: ${{ github.sha }}
-      run: |
-        docker build -t $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:$IMAGE_TAG -f Dockerfile .
-        docker push $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:$IMAGE_TAG
-        echo "image=$ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:$IMAGE_TAG" >> $GITHUB_OUTPUT
         
     - name: Criar Serviço no ECS (se não existir)
       run: |
@@ -193,28 +218,51 @@ jobs:
 
         # Atualizar task definition
         jq \
-          --arg image "${{ steps.build-image.outputs.image }}" \
+          --arg image "${{ needs.build-docker-image.outputs.image }}" \
           --arg redis "$REDIS_CONN" \
           --arg pg "$PG_CONN" \
           --arg env "$ASPNET_ENV" \
           --arg name "${{ env.CONTAINER_NAME }}" \
+          --arg port "${{ env.CONTAINER_PORT }}" \
           '(.containerDefinitions[] | select(.name == $name)) |= 
             (.image = $image |
              .environment = [
                {"name": "ConnectionStrings__Redis", "value": $redis},
                {"name": "ConnectionStrings__PostgreSql", "value": $pg},
-               {"name": "ASPNETCORE_ENVIRONMENT", "value": $env}
+               {"name": "ASPNETCORE_ENVIRONMENT", "value": $env},
+               {"name": "ASPNETCORE_HTTP_PORTS", "value": $port}
              ])' \
           current-task-definition.json > updated-task-definition.json
 
         echo "task-definition=updated-task-definition.json" >> $GITHUB_OUTPUT
+
+  # Job 4: Deploy
+  deploy:
+    name: Deploy para ECS
+    needs: [build-docker-image, prepare-infrastructure]
+    runs-on: ubuntu-latest
+    environment: AWS_DEVELOP
+    
+    steps:
+    - name: Configurar credenciais AWS
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Download da Task Definition atualizada
+      uses: actions/download-artifact@v2
+      with:
+        name: task-definition
+        path: ./
 
     - name: Implantar atualização no ECS
       uses: aws-actions/amazon-ecs-deploy-task-definition@v2
       with:
         service: ${{ env.ECS_SERVICE }}
         cluster: ${{ env.ECS_CLUSTER }}
-        task-definition: ${{ steps.update-task-def.outputs.task-definition }}
+        task-definition: ${{ needs.prepare-infrastructure.outputs.task-definition }}
         wait-for-service-stability: true
         wait-for-minutes: 10
 
