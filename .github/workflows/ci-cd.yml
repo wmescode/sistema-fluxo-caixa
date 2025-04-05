@@ -216,6 +216,19 @@ jobs:
         PG_CONN=$(jq -r '."ConnectionStrings:PostgreSql"' <<< "$SECRETS_JSON")
         ASPNET_ENV=$(jq -r '.ASPNETCORE_ENVIRONMENT // "Production"' <<< "$SECRETS_JSON")
 
+        # Extrair os campos necessários e remover os campos não permitidos
+        jq '{
+          family: .family,
+          networkMode: .networkMode,
+          executionRoleArn: .executionRoleArn,
+          containerDefinitions: .containerDefinitions,
+          volumes: .volumes,
+          placementConstraints: .placementConstraints,
+          requiresCompatibilities: .requiresCompatibilities,
+          cpu: .cpu,
+          memory: .memory
+        }' current-task-definition.json > cleaned-task-definition.json
+        
         # Atualizar task definition
         jq \
           --arg image "${{ needs.build-docker-image.outputs.image }}" \
@@ -232,7 +245,7 @@ jobs:
                {"name": "ASPNETCORE_ENVIRONMENT", "value": $env},
                {"name": "ASPNETCORE_HTTP_PORTS", "value": $port}
              ])' \
-          current-task-definition.json > updated-task-definition.json
+          cleaned-task-definition.json > updated-task-definition.json
 
         # Registrar a task definition atualizada na AWS e obter o ARN
         TASK_DEF_ARN=$(aws ecs register-task-definition \
@@ -240,18 +253,11 @@ jobs:
           --query 'taskDefinition.taskDefinitionArn' \
           --output text)
           
-        # Salvar o nome do arquivo localmente
-        echo "updated-task-definition.json" > task-def-filename.txt
-        
         # Salvar no output para uso no próximo job
         echo "task-definition-file=updated-task-definition.json" >> $GITHUB_OUTPUT
         
         # Mostrar informações para debug
         echo "Nova task definition registrada: $TASK_DEF_ARN"
-        
-        # Salvar arquivo para o próximo job
-        mkdir -p /tmp/workspace
-        cp updated-task-definition.json /tmp/workspace/
     
     - name: Upload task definition como artifact
       uses: actions/upload-artifact@v4
