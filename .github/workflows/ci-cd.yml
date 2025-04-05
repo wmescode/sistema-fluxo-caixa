@@ -108,7 +108,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: AWS_DEVELOP
     outputs:
-      task-definition: ${{ steps.update-task-def.outputs.task-definition }}
+      task-definition-file: ${{ steps.update-task-def.outputs.task-definition-file }}
     
     steps:
     - name: Checkout do repositório
@@ -234,7 +234,31 @@ jobs:
              ])' \
           current-task-definition.json > updated-task-definition.json
 
-        echo "task-definition=updated-task-definition.json" >> $GITHUB_OUTPUT
+        # Registrar a task definition atualizada na AWS e obter o ARN
+        TASK_DEF_ARN=$(aws ecs register-task-definition \
+          --cli-input-json file://updated-task-definition.json \
+          --query 'taskDefinition.taskDefinitionArn' \
+          --output text)
+          
+        # Salvar o nome do arquivo localmente
+        echo "updated-task-definition.json" > task-def-filename.txt
+        
+        # Salvar no output para uso no próximo job
+        echo "task-definition-file=updated-task-definition.json" >> $GITHUB_OUTPUT
+        
+        # Mostrar informações para debug
+        echo "Nova task definition registrada: $TASK_DEF_ARN"
+        
+        # Salvar arquivo para o próximo job
+        mkdir -p /tmp/workspace
+        cp updated-task-definition.json /tmp/workspace/
+    
+    - name: Upload task definition como artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: task-definition
+        path: updated-task-definition.json
+        retention-days: 1
 
   # Job 4: Deploy
   deploy:
@@ -254,19 +278,17 @@ jobs:
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: ${{ env.AWS_REGION }}
         
-    # Este step baixa a task definition do job anterior
-    - name: Baixar Task Definition
-      run: |
-        aws ecs describe-task-definition \
-          --task-definition ${{ env.ECS_TASK_DEFINITION }} \
-          --query 'taskDefinition' > task-definition.json
-    
+    - name: Download task definition artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: task-definition
+        
     - name: Implantar atualização no ECS
       uses: aws-actions/amazon-ecs-deploy-task-definition@v2
       with:
         service: ${{ env.ECS_SERVICE }}
         cluster: ${{ env.ECS_CLUSTER }}
-        task-definition: task-definition.json
+        task-definition: updated-task-definition.json
         wait-for-service-stability: true
         wait-for-minutes: 10
         
