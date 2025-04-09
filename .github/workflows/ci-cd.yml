@@ -1,0 +1,307 @@
+name: CI/CD Pipeline API Consolidado Diário
+
+on:
+  pull_request:
+    branches: [ "master-consolidado-diario" ]
+  push:
+    branches: [ "master-consolidado-diario" ]    
+    
+env:
+  # Configurações gerais
+  DOTNET_VERSION: "9.0.100"   
+  BUILD_CONFIGURATION: "Release"
+  
+  # AWS Resources
+  AWS_REGION: "us-east-1"
+  ECR_REPOSITORY: "api-consolidado-diario"  
+  ECS_CLUSTER: "sistema-fluxo-caixa-2"
+  ECS_SERVICE: "api-consolidado-diario-service"
+  ECS_TASK_DEFINITION: "api-consolidado-diario-task-definition"
+  CONTAINER_NAME: "api-controle-lancamento"
+  SECRET_NAME: "credentials-api-consolidado-diario"  
+  ASPNET_ENV: "Development"
+  
+  # Resource Settings
+  CPU: 256
+  MEMORY: 512
+  CONTAINER_PORT: 80
+  
+jobs:  
+  # Job 1: Build e Testes
+  build-and-test:
+    name: Build e Testes
+    runs-on: ubuntu-latest
+    
+    steps:    
+    - name: Checkout do repositório
+      uses: actions/checkout@v4
+
+    - name: Setup .NET SDK
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+            
+    - name: Cache de dependências
+      uses: actions/cache@v4
+      with:
+        path: ~/.nuget/packages
+        key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+        restore-keys: |
+          ${{ runner.os }}-nuget-        
+        
+    - name: Restaurar dependências
+      run: dotnet restore
+        
+    - name: Construir projeto
+      run: dotnet build --no-restore -c ${{ env.BUILD_CONFIGURATION }} --verbosity normal
+      env:
+        DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+        DOTNET_NOLOGO: true
+        
+    - name: Executar testes
+      run: |
+        dotnet test --no-build -c ${{ env.BUILD_CONFIGURATION }} \
+          --verbosity normal \
+          --logger "console;verbosity=normal" \
+          --blame-hang \
+          --blame-hang-timeout 2m
+      env:
+        DOTNET_CLI_TELEMETRY_OPTOUT: 1
+
+  # Job 2: Build e Push da Imagem Docker
+  build-docker-image:
+    name: Build e Push da Imagem Docker
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    environment: AWS_DEVELOP
+    outputs:
+      image: ${{ steps.build-image.outputs.image }}
+    
+    steps:
+    - name: Checkout do repositório
+      uses: actions/checkout@v4
+
+    - name: Configurar credenciais AWS
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Login no Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v1
+      
+    - name: Construir e enviar imagem ECR
+      id: build-image
+      env:
+        ECR_REGISTRY: 615299770324.dkr.ecr.us-east-1.amazonaws.com
+        IMAGE_TAG: ${{ github.sha }}
+      run: |
+        docker build -t $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:$IMAGE_TAG -f Dockerfile .
+        docker push $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:$IMAGE_TAG
+        echo "image=$ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+  # Job 3: Preparação da Infraestrutura
+  prepare-infrastructure:
+    name: Preparação da Infraestrutura
+    needs: build-docker-image
+    runs-on: ubuntu-latest
+    environment: AWS_DEVELOP
+    outputs:
+      task-definition-file: ${{ steps.update-task-def.outputs.task-definition-file }}
+    
+    steps:
+    - name: Checkout do repositório
+      uses: actions/checkout@v4
+
+    - name: Configurar credenciais AWS
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+        
+    - name: Criar grupo de logs CloudWatch
+      run: |
+        aws logs create-log-group --log-group-name "/ecs/${{ env.ECS_TASK_DEFINITION }}" || true        
+
+    - name: Verificar/Criar Task Definition
+      id: ensure-task-definition
+      run: |
+        # Verificar se a Task Definition existe
+        if aws ecs describe-task-definition \
+          --task-definition ${{ env.ECS_TASK_DEFINITION }} &>/dev/null; then
+          echo "task-definition-exists=true" >> $GITHUB_OUTPUT
+        else
+          # Criar Task Definition básica
+          echo "::group::Criando nova Task Definition"
+          aws ecs register-task-definition \
+            --family ${{ env.ECS_TASK_DEFINITION }} \
+            --network-mode bridge \
+            --requires-compatibilities EC2 \
+            --cpu ${{ env.CPU }} \
+            --memory ${{ env.MEMORY }} \
+            --execution-role-arn arn:aws:iam::615299770324:role/ecsTaskExecutionRole \
+            --container-definitions "[{
+              \"name\": \"${{ env.CONTAINER_NAME }}\",
+              \"image\": \"nginx:alpine\",
+              \"cpu\": ${{ env.CPU }},
+              \"memory\": ${{ env.MEMORY }},
+              \"essential\": true,
+              \"portMappings\": [{
+                \"containerPort\": ${{ env.CONTAINER_PORT }},
+                \"hostPort\": ${{ env.CONTAINER_PORT }},
+                \"protocol\": \"tcp\"
+              }],
+              \"logConfiguration\": {
+                \"logDriver\": \"awslogs\",
+                \"options\": {
+                  \"awslogs-group\": \"/ecs/${{ env.ECS_TASK_DEFINITION }}\",
+                  \"awslogs-region\": \"${{ env.AWS_REGION }}\",
+                  \"awslogs-stream-prefix\": \"ecs\"
+                }
+              }
+            }]"
+          echo "::endgroup::"
+          echo "task-definition-exists=false" >> $GITHUB_OUTPUT
+        fi
+        
+    - name: Criar Serviço no ECS (se não existir)
+      run: |
+        # Verificar se o cluster existe
+        CLUSTER_EXISTS=$(aws ecs describe-clusters --clusters ${{ env.ECS_CLUSTER }} --query 'clusters[0].clusterArn' --output text 2>/dev/null || echo "MISSING")
+        
+        if [ "$CLUSTER_EXISTS" == "MISSING" ]; then
+          echo "Cluster não encontrado, criando..."
+          aws ecs create-cluster --cluster-name ${{ env.ECS_CLUSTER }}
+        fi
+        
+        # Verificar se o serviço existe no formato correto (incluindo o nome do cluster)
+        SERVICE_EXISTS=$(aws ecs list-services --cluster ${{ env.ECS_CLUSTER }} | grep ${{ env.ECS_SERVICE }} || echo "MISSING")
+        
+        if [ "$SERVICE_EXISTS" == "MISSING" ]; then
+          echo "Serviço não encontrado, criando..."
+          aws ecs create-service \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --service-name ${{ env.ECS_SERVICE }} \
+            --task-definition ${{ env.ECS_TASK_DEFINITION }} \
+            --desired-count 1 \
+            --launch-type EC2
+        else
+          echo "Serviço encontrado no cluster"
+        fi
+
+    - name: Recuperar secrets e atualizar Task Definition
+      id: update-task-def
+      run: |
+        # Baixar task definition atual
+        aws ecs describe-task-definition \
+          --task-definition ${{ env.ECS_TASK_DEFINITION }} \
+          --query 'taskDefinition' > current-task-definition.json
+        
+        # Recuperar secrets
+        SECRETS_JSON=$(aws secretsmanager get-secret-value \
+          --secret-id ${{ env.SECRET_NAME }} \
+          --query SecretString \
+          --output text)
+        
+        # Validar JSON
+        if ! jq -e . <<< "$SECRETS_JSON"; then
+          echo "::error::Formato inválido do secret"
+          exit 1
+        fi
+
+        # Processar secrets
+        REDIS_CONN=$(jq -r '."ConnectionStrings:Redis"' <<< "$SECRETS_JSON")
+        PG_CONN=$(jq -r '."ConnectionStrings:PostgreSql"' <<< "$SECRETS_JSON")        
+
+        # Extrair os campos necessários e remover os campos não permitidos
+        jq '{
+          family: .family,
+          networkMode: .networkMode,
+          executionRoleArn: .executionRoleArn,
+          containerDefinitions: .containerDefinitions,
+          volumes: .volumes,
+          placementConstraints: .placementConstraints,
+          requiresCompatibilities: .requiresCompatibilities,
+          cpu: .cpu,
+          memory: .memory
+        }' current-task-definition.json > cleaned-task-definition.json
+        
+        # Atualizar task definition
+        jq \
+          --arg image "${{ needs.build-docker-image.outputs.image }}" \
+          --arg redis "$REDIS_CONN" \
+          --arg pg "$PG_CONN" \
+          --arg env "${{env.ASPNET_ENV}}" \
+          --arg name "${{ env.CONTAINER_NAME }}" \
+          --arg port "${{ env.CONTAINER_PORT }}" \
+          '(.containerDefinitions[] | select(.name == $name)) |= 
+            (.image = $image |
+             .environment = [
+               {"name": "ConnectionStrings__Redis", "value": $redis},
+               {"name": "ConnectionStrings__PostgreSql", "value": $pg},
+               {"name": "ASPNETCORE_ENVIRONMENT", "value": $env},
+               {"name": "ASPNETCORE_HTTP_PORTS", "value": $port}
+             ])' \
+          cleaned-task-definition.json > updated-task-definition.json
+
+        # Registrar a task definition atualizada na AWS e obter o ARN
+        TASK_DEF_ARN=$(aws ecs register-task-definition \
+          --cli-input-json file://updated-task-definition.json \
+          --query 'taskDefinition.taskDefinitionArn' \
+          --output text)
+          
+        # Salvar no output para uso no próximo job
+        echo "task-definition-file=updated-task-definition.json" >> $GITHUB_OUTPUT
+        
+        # Mostrar informações para debug
+        echo "Nova task definition registrada: $TASK_DEF_ARN"
+    
+    - name: Upload task definition como artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: task-definition
+        path: updated-task-definition.json
+        retention-days: 1
+
+  # Job 4: Deploy
+  deploy:
+    name: Deploy para ECS
+    needs: [build-docker-image, prepare-infrastructure]
+    runs-on: ubuntu-latest
+    environment: AWS_DEVELOP
+    
+    steps:
+    - name: Checkout do repositório
+      uses: actions/checkout@v4
+      
+    - name: Configurar credenciais AWS
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+        
+    - name: Download task definition artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: task-definition
+        
+    - name: Implantar atualização no ECS
+      uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+      with:
+        service: ${{ env.ECS_SERVICE }}
+        cluster: ${{ env.ECS_CLUSTER }}
+        task-definition: updated-task-definition.json
+        wait-for-service-stability: true
+        wait-for-minutes: 10
+        
+    - name: Verificar status do serviço
+      run: |
+        aws ecs describe-services \
+          --cluster ${{ env.ECS_CLUSTER }} \
+          --services ${{ env.ECS_SERVICE }} \
+          --query 'services[0].[desiredCount,runningCount,deployments[].status]' \
+          --output text

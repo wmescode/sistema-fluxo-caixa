@@ -27,6 +27,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConsolidadoDiario.IoC", "sr
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConsolidadoDiario.Messaging", "src\ConsolidadoDiario.Messaging\ConsolidadoDiario.Messaging.csproj", "{EE211477-1286-497B-9135-0534414E41B8}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConsolidadoDiario.Unit", "tests\ConsolidadoDiario.Unit\ConsolidadoDiario.Unit.csproj", "{D4DB51FA-6CDA-49BC-A442-C2B03C83FEDB}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -57,6 +59,10 @@ Global
 		{EE211477-1286-497B-9135-0534414E41B8}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{EE211477-1286-497B-9135-0534414E41B8}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{EE211477-1286-497B-9135-0534414E41B8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D4DB51FA-6CDA-49BC-A442-C2B03C83FEDB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D4DB51FA-6CDA-49BC-A442-C2B03C83FEDB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D4DB51FA-6CDA-49BC-A442-C2B03C83FEDB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D4DB51FA-6CDA-49BC-A442-C2B03C83FEDB}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -72,6 +78,7 @@ Global
 		{BAC92DCE-11B5-4281-9F95-3D1F5DF03370} = {8C001A9A-0CD1-46B4-91F9-7A964998064D}
 		{DBE6B2F9-3A04-4D4D-B03F-83D54482F50A} = {641FB0B5-39E3-4E54-AA9F-5DB0F8C4ABFB}
 		{EE211477-1286-497B-9135-0534414E41B8} = {641FB0B5-39E3-4E54-AA9F-5DB0F8C4ABFB}
+		{D4DB51FA-6CDA-49BC-A442-C2B03C83FEDB} = {833E001E-4DBB-4F0B-AE7E-65B115A9C530}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {107462C0-B180-49DA-96D7-BA5E5A5CD7C3}
